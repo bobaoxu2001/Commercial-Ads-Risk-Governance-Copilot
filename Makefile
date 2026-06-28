@@ -1,0 +1,38 @@
+.PHONY: install ingest transform build-ui app dev test evaluate clean
+
+PYTHON ?= .venv/bin/python
+
+install:
+	uv venv --python 3.11 .venv
+	uv pip install --python $(PYTHON) -r requirements.txt
+	npm install
+
+ingest:
+	$(PYTHON) -m src.ingest.fetch_ftc
+	$(PYTHON) -m src.ingest.fetch_cfpb
+	$(PYTHON) -m src.ingest.fetch_meta_ads
+
+transform:
+	$(PYTHON) -m src.transform.normalize_ftc
+	$(PYTHON) -m src.transform.normalize_cfpb
+	$(PYTHON) -m src.transform.normalize_ads
+	$(PYTHON) -m src.transform.build_duckdb
+
+build-ui:
+	npm run build
+
+app: build-ui
+	$(PYTHON) -m src.app.api
+
+dev:
+	$(PYTHON) scripts/run_dev.py
+
+test:
+	$(PYTHON) -m pytest -q
+	npm run build
+
+evaluate:
+	$(PYTHON) -m src.analytics.evaluate
+
+clean:
+	rm -rf dist .pytest_cache

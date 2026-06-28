@@ -1,0 +1,22 @@
+from src.risk.evidence_extractor import detect_language, extract_evidence, landing_page_mismatch
+
+
+def test_language_detection() -> None:
+    assert detect_language("guaranteed loan") == "en"
+    assert detect_language("稳赚保本") == "zh"
+    assert detect_language("稳赚 guaranteed") == "mixed"
+
+
+def test_off_platform_signal() -> None:
+    evidence = extract_evidence("加微联系，稳赚保本")
+    assert any(item["type"] == "off_platform_contact" for item in evidence)
+
+
+def test_english_terms_use_word_boundaries() -> None:
+    evidence = extract_evidence("The borrower secured a loan.")
+    assert not any(item["term"] == "cure" for item in evidence)
+
+
+def test_landing_page_mismatch_is_only_emitted_when_text_exists() -> None:
+    assert landing_page_mismatch("guaranteed loan", None) is None
+    assert landing_page_mismatch("guaranteed loan", "buy garden furniture") is not None
