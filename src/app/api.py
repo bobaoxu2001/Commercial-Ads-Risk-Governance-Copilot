@@ -60,6 +60,14 @@ def get_mandarin() -> dict[str, object]:
     return repository.mandarin_lab()
 
 
+@app.get("/api/llm-comparison")
+def get_llm_comparison(limit: int = Query(5, ge=1, le=20)) -> dict[str, object]:
+    try:
+        return repository.llm_comparison(limit)
+    except FileNotFoundError as exc:
+        return {"status": "unavailable", "reason": str(exc), "llm_available": False, "sample_size": 0, "cases": []}
+
+
 @app.post("/api/feedback")
 def post_feedback(payload: FeedbackInput) -> dict[str, object]:
     try:

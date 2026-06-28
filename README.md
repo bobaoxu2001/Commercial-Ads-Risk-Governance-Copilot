@@ -4,6 +4,19 @@ AdShield AI is a portfolio-grade risk strategy and operations system built for a
 
 > **Truth boundary:** This project has no TikTok internal access and does not claim to reproduce TikTok enforcement decisions. It uses public FTC and CFPB data as risk priors and vocabulary, and optionally uses the official Meta Ad Library API when credentials are supplied. It never substitutes synthetic dashboard data.
 
+## 30-second recruiter walkthrough
+
+| Question | Answer |
+|---|---|
+| **What problem does it solve?** | Commercial ads risk teams must triage huge volumes of potentially deceptive, scam, health, gambling, and counterfeit ads — across English and Mandarin — without auto-approving harm or burying reviewers. AdShield AI turns raw text into a prioritized, explainable review queue. |
+| **Why is the data real?** | It ingests the official **FTC Consumer Sentinel 2024** archive and the **CFPB Consumer Complaint Database** (official API, with a CC0 public-domain mirror fallback), and optionally real **Meta Ad Library** creatives. No dashboard number or example is fabricated; synthetic text exists only in `tests/`. |
+| **What does the dashboard show?** | A Command Center (provenance, real record counts, high-risk rate, queue size), a searchable Review Queue + Investigation Desk, source-linked Policy Reasoning, a Metric Diagnosis page (category mix, feature lift, anomalies, **rule-vs-LLM comparison**), human feedback, and a Mandarin Risk Lab. |
+| **What does the AI do?** | A transparent, deterministic rule engine extracts bilingual risk evidence, retrieves the most relevant policy rule, and produces a risk score, severity, confidence, and a recommended action — every number traceable. See the [Risk Scoring Methodology](docs/RISK_SCORING_METHODOLOGY.md). |
+| **What do humans still decide?** | Anything ambiguous. The engine escalates the mid-band and low-confidence cases to human review and only auto-acts when score *and* confidence are both strong. CFPB complaints are never treated as confirmed ad violations. |
+| **How does it map to TikTok's role?** | It mirrors a *Risk Strategy & Operations Analyst (Mandarin)*: policy interpretation, measurable operational routing, bilingual evasion detection, metric diagnosis, and visible integrity/privacy boundaries. See the [Portfolio Summary](docs/PORTFOLIO_SUMMARY.md). |
+
+**Default demo vs. enriched run:** with no API keys the demo runs entirely on public **FTC/CFPB risk cases**. Supplying `META_ACCESS_TOKEN` adds **real ad creative examples** from the official Meta Ad Library; supplying `OPENAI_API_KEY` adds an optional LLM second opinion. Deterministic scoring is always the default. See [Real Ads Enrichment](docs/REAL_ADS_ENRICHMENT.md).
+
 ![Selected command-center design](docs/screenshots/reference-command-center.png)
 
 ## Why it maps to TikTok Risk Strategy & Operations
@@ -84,9 +97,9 @@ Validation checks enforce non-empty ad text, unique ad IDs, valid taxonomy categ
 
 ## AI boundary
 
-The deterministic engine is the reliable default. It extracts regulated products, guarantees/urgency, off-platform contact, Mandarin evasion terms, and category signals. Scores are triage recommendations—not legal conclusions. A high score does not prove wrongdoing, and CFPB complaints are not verified ad violations.
+The deterministic engine is the reliable default. It extracts regulated products, guarantees/urgency, off-platform contact, Mandarin evasion terms, and category signals. Scores are triage recommendations—not legal conclusions. A high score does not prove wrongdoing, and CFPB complaints are not verified ad violations. The full scoring formula, thresholds, and false-positive/false-negative tradeoff are documented in the [Risk Scoring Methodology](docs/RISK_SCORING_METHODOLOGY.md).
 
-Optional LLM output is a comparison layer, not an automatic enforcement authority. Human reviewers own ambiguous and market-specific decisions.
+Optional LLM output is a comparison layer, not an automatic enforcement authority. The `GET /api/llm-comparison` endpoint and the Metric Diagnosis page show a 5-case rule-vs-LLM comparison; it only calls the model when `OPENAI_API_KEY` is set and otherwise renders a clean empty state. Human reviewers own ambiguous and market-specific decisions.
 
 ## Privacy and responsible use
 
@@ -107,6 +120,16 @@ Optional LLM output is a comparison layer, not an automatic enforcement authorit
 ## Screenshots
 
 The selected visual target is included above. To capture the running dashboard, build the mart, start `make app`, and capture `http://127.0.0.1:8501` at 1440×1024. The repository’s `design-qa.md` records the final visual comparison.
+
+## Documentation
+
+| Doc | Purpose |
+|---|---|
+| [Risk Scoring Methodology](docs/RISK_SCORING_METHODOLOGY.md) | Model card: deterministic design, score components, thresholds, FP/FN tradeoff, why this is not an enforcement model. |
+| [Real Ads Enrichment](docs/REAL_ADS_ENRICHMENT.md) | How Meta Ad Library enrichment works, keywords, raw storage, and honest no-token behavior. |
+| [Evaluation Report](docs/EVALUATION_REPORT.md) | Current metrics and the rule-vs-LLM comparison sample. |
+| [Risk Taxonomy](docs/RISK_TAXONOMY.md) · [Metric Dictionary](docs/METRIC_DICTIONARY.md) | Bilingual categories and per-metric definitions/limitations. |
+| [Project Brief](docs/PROJECT_BRIEF.md) · [Portfolio Summary](docs/PORTFOLIO_SUMMARY.md) | Product framing and interview/job-requirement mapping. |
 
 ## Resume bullets
 

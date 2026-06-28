@@ -142,7 +142,31 @@ function QueuePage({ cases, onSelect, refresh }) {
   return <><PageHeader title="Case Review Queue" subtitle="Search, triage, and document decisions on public-source cases."/><section className="surface filters"><label><MagnifyingGlass size={17}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search case text or ID"/></label><select value={category} onChange={e => setCategory(e.target.value)}><option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}</select><select value={severity} onChange={e => setSeverity(e.target.value)}><option value="">All severities</option>{["critical","high","medium","low"].map(value => <option key={value}>{value}</option>)}</select><select value={language} onChange={e => setLanguage(e.target.value)}><option value="">All languages</option>{["en","zh","mixed"].map(value => <option key={value}>{value}</option>)}</select><select value={source} onChange={e => setSource(e.target.value)}><option value="">All sources</option>{["CFPB","Meta"].map(value => <option key={value}>{value}</option>)}</select><select value={action} onChange={e => setAction(e.target.value)}><option value="">All actions</option>{["approve","soft reject","hard reject","escalate to human review"].map(value => <option key={value}>{value}</option>)}</select><button onClick={refresh}><SlidersHorizontal size={17}/> Refresh</button></section><section className="surface full-table"><div className="section-title">Prioritized cases <span>{fmt.format(filtered.length)} visible</span></div><RiskTable cases={filtered} onSelect={onSelect}/></section></>;
 }
 
-function MetricsPage({ metrics }) {
+function LlmComparison({ comparison = {} }) {
+  const cases = comparison.cases || [];
+  const available = comparison.llm_available;
+  return <section className="surface llm-compare">
+    <div className="section-title">Rule engine vs. LLM <span>{available ? `${comparison.llm_model} second opinion on ${cases.length} sampled cases` : "Deterministic scoring is the default"}</span></div>
+    <div className={`llm-banner ${available ? "on" : "off"}`}><Brain size={20}/><div><strong>{available ? "Optional LLM comparison active" : "LLM comparison is optional and currently off"}</strong><p>{comparison.note}</p></div>{available && comparison.category_agreement_rate != null && <span className="agree-pill">{pct(comparison.category_agreement_rate)} category agreement</span>}</div>
+    {!cases.length ? <Empty title="No sampled cases yet" detail="Build the data mart with make ingest && make transform to populate the comparison sample."/> :
+      <div className="table-wrap"><table className="risk-table compare-table">
+        <thead><tr><th>Case</th><th>Rule category → action</th><th>LLM category → action</th><th>Match</th></tr></thead>
+        <tbody>{cases.map((row) => {
+          const det = row.deterministic || {};
+          const llm = row.llm;
+          const match = row.category_agreement;
+          return <tr key={row.case_id}>
+            <td><strong>{row.case_id}</strong><span>{short(row.excerpt, 64)}</span></td>
+            <td>{det.risk_category}<small> → {det.recommended_action}</small></td>
+            <td>{llm ? <>{llm.risk_category}<small> → {llm.recommended_action}</small></> : <em>not run (no key)</em>}</td>
+            <td>{match == null ? "—" : <Pill tone={match ? "approve" : "high"}>{match ? "agree" : "differs"}</Pill>}</td>
+          </tr>;
+        })}</tbody>
+      </table></div>}
+  </section>;
+}
+
+function MetricsPage({ metrics, llmComparison }) {
   const evaluation = metrics.evaluation || {};
   return <><PageHeader title="Risk Metric Diagnosis" subtitle="Diagnose category mix, risk-driving features, market differences, spikes, and decision coverage."/>
     <div className="metric-grid">
@@ -152,6 +176,7 @@ function MetricsPage({ metrics }) {
       <section className="surface"><div className="section-title">Market comparison <span>Top CFPB states by case volume</span></div><ResponsiveContainer width="100%" height={240}><BarChart data={metrics.market_comparison}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="state"/><YAxis/><Tooltip/><Bar dataKey="cases" fill="#258e87" radius={[4,4,0,0]}/></BarChart></ResponsiveContainer></section>
       <section className="surface"><div className="section-title">AI evaluation <span>Labels never fabricated</span></div><div className="eval-grid"><div><span>Auto-decision coverage</span><strong>{pct(evaluation.auto_decision_coverage)}</strong></div><div><span>Escalation rate</span><strong>{pct(evaluation.escalation_rate)}</strong></div><div><span>Evidence completeness</span><strong>{pct(evaluation.evidence_extraction_completeness)}</strong></div><div><span>Review minutes saved</span><strong>{fmt.format(evaluation.estimated_review_minutes_saved || 0)}</strong></div><div><span>Precision / Recall / F1</span><strong>{evaluation.f1 == null ? "Awaiting labels" : `${pct(evaluation.precision)} / ${pct(evaluation.recall)} / ${pct(evaluation.f1)}`}</strong></div></div></section>
     </div>
+    <LlmComparison comparison={llmComparison}/>
   </>;
 }
 
@@ -169,13 +194,13 @@ function FeedbackPage({ evaluation }) {
 
 export function App() {
   const [page, setPage] = useState("overview");
-  const [data, setData] = useState({ overview: null, metrics: null, cases: [], policies: [], mandarin: { terms: [], real_record_examples: [] } });
+  const [data, setData] = useState({ overview: null, metrics: null, cases: [], policies: [], mandarin: { terms: [], real_record_examples: [] }, llmComparison: { llm_available: false, cases: [] } });
   const [selectedCase, setSelectedCase] = useState(null);
   const [error, setError] = useState("");
   const load = async () => {
     try {
-      const [overview, metrics, cases, policies, mandarin] = await Promise.all([get("/overview"), get("/metrics"), get("/cases?limit=500"), get("/policies"), get("/mandarin")]);
-      setData({ overview, metrics, cases, policies, mandarin }); setError("");
+      const [overview, metrics, cases, policies, mandarin, llmComparison] = await Promise.all([get("/overview"), get("/metrics"), get("/cases?limit=500"), get("/policies"), get("/mandarin"), get("/llm-comparison")]);
+      setData({ overview, metrics, cases, policies, mandarin, llmComparison }); setError("");
     } catch (err) { setError(err.message); }
   };
   useEffect(() => { load(); }, []);
@@ -186,7 +211,7 @@ export function App() {
   let content;
   if (page === "overview") content = <Overview {...data} onSelect={setSelectedCase} navigate={setPage}/>;
   else if (page === "queue") content = <QueuePage cases={data.cases} onSelect={setSelectedCase} refresh={load}/>;
-  else if (page === "metrics") content = <MetricsPage metrics={data.metrics}/>;
+  else if (page === "metrics") content = <MetricsPage metrics={data.metrics} llmComparison={data.llmComparison}/>;
   else if (page === "policy") content = <PolicyPage policies={data.policies}/>;
   else if (page === "mandarin") content = <MandarinPage mandarin={data.mandarin}/>;
   else content = <FeedbackPage evaluation={data.metrics.evaluation || {}}/>;

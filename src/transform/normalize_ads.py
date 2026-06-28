@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pandas as pd
 
@@ -10,9 +11,17 @@ from src.config import settings
 COLUMNS = ["ad_id", "case_id", "ad_text", "advertiser_id", "advertiser_name", "created_at", "delivery_start", "delivery_stop", "platforms", "source", "source_url", "retrieved_at"]
 
 
-def normalize_ads() -> pd.DataFrame:
+def normalize_ads(raw_dir: Path | None = None, processed_dir: Path | None = None) -> pd.DataFrame:
+    """Normalize real Meta Ad Library responses into a tabular ads frame.
+
+    Only `data` entries from saved API responses are read. When no token was supplied,
+    the raw run holds a skipped manifest with no `data`, so this returns an empty frame
+    with the full schema rather than fabricating any ad records.
+    """
+    raw_dir = raw_dir or settings.raw_dir
+    processed_dir = processed_dir or settings.processed_dir
     rows: list[dict[str, object]] = []
-    for path in sorted((settings.raw_dir / "meta_ads").glob("*/*.json")):
+    for path in sorted((raw_dir / "meta_ads").glob("*/*.json")):
         if path.name == "manifest.json":
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -40,8 +49,8 @@ def normalize_ads() -> pd.DataFrame:
                 "retrieved_at": retrieved_at,
             })
     frame = pd.DataFrame(rows, columns=COLUMNS).drop_duplicates("ad_id") if rows else pd.DataFrame(columns=COLUMNS)
-    settings.processed_dir.mkdir(parents=True, exist_ok=True)
-    out = settings.processed_dir / "ads.parquet"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    out = processed_dir / "ads.parquet"
     frame.to_parquet(out, index=False)
     print(f"Meta: normalized {len(frame)} ads to {out}")
     return frame

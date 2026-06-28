@@ -137,6 +137,18 @@ a { color: inherit; }
 .mandarin-table strong { font-size: 15px; }
 .examples { margin-top: 14px; padding: 10px 15px; }
 
+.pill.approve { background: #ebf8f5; border-color: #a9ddd5; color: #137970; }
+.llm-compare { margin-top: 14px; padding: 12px 15px 15px; }
+.llm-banner { display: flex; gap: 12px; align-items: center; padding: 12px 14px; margin: 6px 0 12px; border-radius: 7px; border: 1px solid var(--line); background: #f7faff; }
+.llm-banner.on { background: #f1f7ff; border-color: #c7ddf3; }
+.llm-banner.off { background: #f7f9fb; }
+.llm-banner svg { color: #3a5f8d; flex: none; }
+.llm-banner strong { font-size: 12px; }
+.llm-banner p { font-size: 10px; color: #5a6d83; margin: 4px 0 0; line-height: 1.5; }
+.llm-banner .agree-pill { margin-left: auto; flex: none; align-self: flex-start; font-size: 10px; font-weight: 640; color: #137970; background: #ebf8f5; border: 1px solid #a9ddd5; border-radius: 4px; padding: 4px 8px; white-space: nowrap; }
+.compare-table td small { color: #7a8798; font-size: 10px; }
+.compare-table td em { color: #97a3b2; font-style: normal; }
+
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(4, 18, 35, .42); z-index: 30; display: flex; justify-content: flex-end; }
 .drawer { width: min(720px, 94vw); height: 100%; background: #fff; overflow-y: auto; box-shadow: -12px 0 32px rgba(4, 18, 35, .16); }
 .drawer > header { position: sticky; top: 0; background: #fff; z-index: 3; padding: 20px 23px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }

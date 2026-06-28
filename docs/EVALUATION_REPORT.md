@@ -1,6 +1,6 @@
 # Evaluation Report
 
-Generated: 2026-06-28T10:29:49.813031+00:00
+Generated: 2026-06-28T12:46:27.011591+00:00
 
 This report is calculated from the current local DuckDB mart. It never substitutes fabricated labels. Precision, recall, and F1 remain unavailable until human review feedback exists.
 
@@ -20,7 +20,20 @@ This report is calculated from the current local DuckDB mart. It never substitut
 
 ## Rule vs. LLM comparison
 
-The deterministic rules engine is the default and is evaluated for every case. If `OPENAI_API_KEY` is configured, `src/risk/llm_evaluator.py` can produce a second structured assessment for sampled-case comparison; no paid call is made by default.
+The deterministic rules engine (`deterministic_rules_v1`) is the default and is evaluated for every case. If `OPENAI_API_KEY` is configured, `src/risk/comparison.py` produces a second structured assessment for a 5-case sample through the optional `src/risk/llm_evaluator.py`; no paid call is made by default. The same data also powers the dashboard's `/api/llm-comparison` panel.
+
+No OPENAI_API_KEY is configured, so no LLM call is made. Deterministic rule-based scoring remains the default for every case; LLM comparison is an optional, opt-in layer.
+
+Sampled deterministic decisions (the authoritative default). The LLM column is intentionally
+empty because no `OPENAI_API_KEY` is configured — nothing is fabricated.
+
+| Case | Source | Rule category | Severity | Rule action | LLM (optional) |
+|---|---|---|---|---|---|
+| cfpb-3954356 | CFPB | Financial Scam / High-Risk Financial Services | critical | hard reject | not run (no key) |
+| cfpb-16303317 | CFPB | Financial Scam / High-Risk Financial Services | high | soft reject | not run (no key) |
+| cfpb-2866962 | CFPB | Financial Scam / High-Risk Financial Services | high | soft reject | not run (no key) |
+| cfpb-10134115 | CFPB | Financial Scam / High-Risk Financial Services | high | escalate to human review | not run (no key) |
+| cfpb-1251200 | CFPB | Financial Scam / High-Risk Financial Services | high | escalate to human review | not run (no key) |
 
 ## Interpretation limits
 

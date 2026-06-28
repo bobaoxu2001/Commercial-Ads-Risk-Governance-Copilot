@@ -49,6 +49,48 @@ def evaluation_metrics() -> dict[str, object]:
     return result
 
 
+def _comparison_section() -> str:
+    from src.risk.comparison import rule_vs_llm_comparison
+
+    comparison = rule_vs_llm_comparison(limit=5)
+    if comparison.get("status") != "available":
+        return (
+            "The deterministic rules engine is the default and is evaluated for every case. "
+            "A sample comparison could not be generated because the DuckDB mart is not built; "
+            "run `make ingest && make transform` first.\n"
+        )
+    lines = [comparison.get("note", ""), ""]
+    if comparison.get("llm_available"):
+        lines.append(f"LLM comparison model: `{comparison.get('llm_model')}`. ")
+        rate = comparison.get("category_agreement_rate")
+        if rate is not None:
+            lines.append(f"Category agreement on the sample: **{rate:.0%}**.")
+        lines.append("")
+        lines.append("| Case | Source | Rule category → action | LLM category → action | Category match |")
+        lines.append("|---|---|---|---|---|")
+        for case in comparison["cases"]:
+            det = case["deterministic"]
+            llm = case.get("llm") or {}
+            match = "—" if case.get("category_agreement") is None else ("✅" if case["category_agreement"] else "⚠️")
+            lines.append(
+                f"| {case['case_id']} | {case['source']} | {det['risk_category']} → {det['recommended_action']} | "
+                f"{llm.get('risk_category', 'n/a')} → {llm.get('recommended_action', 'n/a')} | {match} |"
+            )
+    else:
+        lines.append("Sampled deterministic decisions (the authoritative default). The LLM column is intentionally")
+        lines.append("empty because no `OPENAI_API_KEY` is configured — nothing is fabricated.")
+        lines.append("")
+        lines.append("| Case | Source | Rule category | Severity | Rule action | LLM (optional) |")
+        lines.append("|---|---|---|---|---|---|")
+        for case in comparison["cases"]:
+            det = case["deterministic"]
+            lines.append(
+                f"| {case['case_id']} | {case['source']} | {det['risk_category']} | {det['severity']} | "
+                f"{det['recommended_action']} | not run (no key) |"
+            )
+    return "\n".join(lines) + "\n"
+
+
 def write_report() -> None:
     result = evaluation_metrics()
     metrics = "\n".join(f"- **{key.replace('_', ' ').title()}:** {value}" for key, value in result.items())
@@ -64,8 +106,9 @@ This report is calculated from the current local DuckDB mart. It never substitut
 
 ## Rule vs. LLM comparison
 
-The deterministic rules engine is the default and is evaluated for every case. If `OPENAI_API_KEY` is configured, `src/risk/llm_evaluator.py` can produce a second structured assessment for sampled-case comparison; no paid call is made by default.
+The deterministic rules engine (`deterministic_rules_v1`) is the default and is evaluated for every case. If `OPENAI_API_KEY` is configured, `src/risk/comparison.py` produces a second structured assessment for a 5-case sample through the optional `src/risk/llm_evaluator.py`; no paid call is made by default. The same data also powers the dashboard's `/api/llm-comparison` panel.
 
+{_comparison_section()}
 ## Interpretation limits
 
 CFPB complaints are not verified examples of policy-violating ads, and FTC rows are aggregates. These sources provide consumer-harm priors and vocabulary, not ground-truth ad enforcement labels. Human review remains required for ambiguous decisions.

@@ -9,7 +9,17 @@ import duckdb
 from src.analytics.evaluate import evaluation_metrics
 from src.analytics.metric_diagnosis import metric_diagnosis
 from src.config import settings
+from src.risk.comparison import rule_vs_llm_comparison
 from src.risk.taxonomy import MANDARIN_TERMS
+
+VALID_DECISIONS = frozenset({"approve", "reject", "escalate", "wrong category", "false positive", "false negative"})
+
+
+def validate_feedback_decision(decision: str) -> str:
+    """Return the decision if a reviewer is allowed to record it, else raise ValueError."""
+    if decision not in VALID_DECISIONS:
+        raise ValueError(f"Unsupported reviewer decision: {decision!r}")
+    return decision
 
 
 def _connect(read_only: bool = True) -> duckdb.DuckDBPyConnection:
@@ -89,9 +99,7 @@ def case_detail(case_id: str) -> dict[str, object] | None:
 
 
 def save_feedback(case_id: str, decision: str, notes: str = "") -> dict[str, object]:
-    allowed = {"approve", "reject", "escalate", "wrong category", "false positive", "false negative"}
-    if decision not in allowed:
-        raise ValueError("Unsupported reviewer decision")
+    validate_feedback_decision(decision)
     payload = {"feedback_id": str(uuid.uuid4()), "case_id": case_id, "reviewer_decision": decision, "notes": notes, "created_at": datetime.now(UTC).isoformat()}
     with _connect(read_only=False) as db:
         db.execute("INSERT INTO human_review_feedback VALUES (?, ?, ?, ?, ?)", list(payload.values()))
@@ -105,6 +113,15 @@ def metrics() -> dict[str, object]:
 def policies() -> list[dict[str, object]]:
     with _connect() as db:
         return _records(db, "SELECT * FROM policy_rules ORDER BY category, rule_id")
+
+
+def llm_comparison(limit: int = 5) -> dict[str, object]:
+    """Deterministic rule output vs. optional LLM output for a small sample of scored cases.
+
+    The deterministic engine is always the default. A paid LLM call is made only when
+    OPENAI_API_KEY is configured; otherwise the LLM column is an explicit empty state.
+    """
+    return rule_vs_llm_comparison(limit=limit)
 
 
 def mandarin_lab() -> dict[str, object]:
