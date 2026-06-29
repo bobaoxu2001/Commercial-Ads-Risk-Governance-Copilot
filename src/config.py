@@ -10,6 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
 
+def _csv_env(name: str, default: str) -> tuple[str, ...]:
+    """Parse a comma-separated env var into an upper-cased, de-blanked tuple."""
+    return tuple(part.strip().upper() for part in os.getenv(name, default).split(",") if part.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     root: Path = ROOT
@@ -19,7 +24,9 @@ class Settings:
     db_path: Path = ROOT / os.getenv("ADSHIELD_DB_PATH", "data/processed/adshield.duckdb")
     meta_access_token: str | None = os.getenv("META_ACCESS_TOKEN") or None
     meta_graph_api_version: str = os.getenv("META_GRAPH_API_VERSION", "v23.0")
-    meta_ad_country: str = os.getenv("META_AD_COUNTRY", "US")
+    meta_ad_countries: tuple[str, ...] = _csv_env("META_AD_COUNTRIES", "GB,IE,FR,DE,NL,ES,IT")
+    meta_ad_types: tuple[str, ...] = _csv_env("META_AD_TYPES", "FINANCIAL_PRODUCTS_AND_SERVICES_ADS,EMPLOYMENT_ADS,HOUSING_ADS,ALL")
+    meta_max_pages_per_query: int = int(os.getenv("META_MAX_PAGES_PER_QUERY", "3"))
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY") or None
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
     cfpb_max_records: int = int(os.getenv("CFPB_MAX_RECORDS", "1000"))

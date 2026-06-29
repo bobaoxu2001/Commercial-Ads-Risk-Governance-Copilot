@@ -15,7 +15,7 @@ def test_empty_table_when_meta_token_absent(tmp_path) -> None:
     """A skipped (no-token) run yields an empty ads table and never fabricates ads."""
     raw_dir = tmp_path / "raw"
     processed_dir = tmp_path / "processed"
-    _write_run(raw_dir, "manifest.json", {"status": "skipped_no_token", "records": 0})
+    _write_run(raw_dir, "manifest.json", {"status": "skipped_no_token", "total_records": 0})
 
     frame = normalize_ads(raw_dir=raw_dir, processed_dir=processed_dir)
 
@@ -26,21 +26,48 @@ def test_empty_table_when_meta_token_absent(tmp_path) -> None:
     assert list(saved.columns) == COLUMNS
 
 
-def test_real_ads_are_normalized_without_fabrication(tmp_path) -> None:
-    """When the API returned real `data`, those exact ads are normalized — and only those."""
+def test_real_ads_are_normalized_with_context_and_no_fabrication(tmp_path) -> None:
+    """Real `data` is normalized with query context; empty creatives are dropped, not replaced."""
     raw_dir = tmp_path / "raw"
     processed_dir = tmp_path / "processed"
-    _write_run(raw_dir, "manifest.json", {"status": "complete", "records": 1})
-    _write_run(raw_dir, "loan.json", {"data": [
-        {"id": "123", "page_id": "p1", "page_name": "Acme", "ad_creative_bodies": ["Guaranteed loan, no credit check"]},
-        {"id": "456", "page_id": "p2", "page_name": "Empty Co", "ad_creative_bodies": ["   "]},  # dropped: no text
-    ]})
+    _write_run(raw_dir, "manifest.json", {"status": "complete", "total_records": 2})
+    _write_run(raw_dir, "GB__ALL__loan__p1.json", {
+        "_query": {"country": "GB", "ad_type": "ALL", "keyword": "loan", "page": 1},
+        "data": [
+            {
+                "id": "123", "page_id": "p1", "page_name": "Acme",
+                "ad_creative_bodies": ["Guaranteed loan, no credit check"],
+                "ad_snapshot_url": "https://www.facebook.com/ads/library/?id=123",
+                "languages": ["en"], "eu_total_reach": 12000,
+            },
+            {"id": "456", "page_id": "p2", "page_name": "Empty Co", "ad_creative_bodies": ["   "]},  # dropped
+        ],
+    })
 
     frame = normalize_ads(raw_dir=raw_dir, processed_dir=processed_dir)
 
-    assert len(frame) == 1  # the empty-text ad is dropped, not replaced by a placeholder
+    assert len(frame) == 1  # empty-text ad dropped, not replaced by a placeholder
     row = frame.iloc[0]
     assert row["ad_id"] == "123"
     assert row["case_id"] == "meta-123"
     assert "Guaranteed loan" in row["ad_text"]
+    assert row["country"] == "GB"
+    assert row["ad_type"] == "ALL"
+    assert row["keyword"] == "loan"
+    assert row["ad_snapshot_url"].endswith("id=123")
+    assert row["eu_total_reach"] == 12000
+    assert json.loads(row["languages"]) == ["en"]
     assert row["source"] == "Meta Ad Library API"
+
+
+def test_dedupes_by_ad_id(tmp_path) -> None:
+    """The same ad returned under two queries collapses to a single row."""
+    raw_dir = tmp_path / "raw"
+    processed_dir = tmp_path / "processed"
+    ad = {"id": "789", "page_name": "DupeCo", "ad_creative_bodies": ["crypto doubling scheme"]}
+    _write_run(raw_dir, "GB__ALL__crypto__p1.json", {"_query": {"country": "GB", "ad_type": "ALL", "keyword": "crypto"}, "data": [ad]})
+    _write_run(raw_dir, "IE__ALL__crypto__p1.json", {"_query": {"country": "IE", "ad_type": "ALL", "keyword": "crypto"}, "data": [ad]})
+
+    frame = normalize_ads(raw_dir=raw_dir, processed_dir=processed_dir)
+
+    assert list(frame["ad_id"]) == ["789"]

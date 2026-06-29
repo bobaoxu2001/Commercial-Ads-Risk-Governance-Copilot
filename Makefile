@@ -1,4 +1,4 @@
-.PHONY: install ingest transform build-ui app dev test evaluate clean
+.PHONY: install ingest transform build-ui app dev test evaluate check-meta-token clean
 
 PYTHON ?= .venv/bin/python
 
@@ -33,6 +33,9 @@ test:
 
 evaluate:
 	$(PYTHON) -m src.analytics.evaluate
+
+check-meta-token:
+	$(PYTHON) scripts/check_meta_token.py
 
 clean:
 	rm -rf dist .pytest_cache

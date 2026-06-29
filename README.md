@@ -84,10 +84,23 @@ Open `http://127.0.0.1:8501`. For separate frontend/backend hot reload, run `mak
 
 ### API keys
 
-Copy `.env.example` to `.env`.
+Copy `.env.example` to `.env`. Tokens are secrets — paste them only into your local `.env`
+(git-ignored); the tooling never prints, logs, or commits them.
 
-- `META_ACCESS_TOKEN`: enables official Meta Ad Library ingestion. Without it, the run writes a transparent skipped manifest and continues.
+- `META_ACCESS_TOKEN`: enables official Meta Ad Library ingestion of real UK/EU ad creatives. Without it, the run writes a transparent skipped manifest and continues. Related: `META_AD_COUNTRIES` (default `GB,IE,FR,DE,NL,ES,IT`), `META_AD_TYPES`, `META_MAX_PAGES_PER_QUERY`, `META_GRAPH_API_VERSION`.
 - `OPENAI_API_KEY`: enables optional LLM comparison through the Responses API. Without it, deterministic evidence extraction, scoring, policy retrieval, analytics, feedback, and the full dashboard still work.
+
+### How to get real ad creatives
+
+The default demo runs on public FTC/CFPB risk cases. To add **real UK/EU commercial ad creatives** from the official Meta Ad Library:
+
+1. **Set up Meta developer access** (official pages only): confirm your Facebook identity if prompted (<https://www.facebook.com/ID>), create a [Meta for Developers](https://developers.facebook.com/) account and [app](https://developers.facebook.com/apps/), then generate a token in the [Graph API Explorer](https://developers.facebook.com/tools/explorer/). See the [Ad Library API docs](https://www.facebook.com/ads/library/api/).
+2. **Put the token in `.env`** — `cp .env.example .env`, then set `META_ACCESS_TOKEN=...` manually. UK/EU countries are the default.
+3. **Verify the token** with one safe call: `make check-meta-token` (never prints the token; reports record counts and the first few results, or an error plus a likely fix).
+4. **Ingest, transform, run:** `make ingest && make transform && make app`.
+5. **Verify in the dashboard** at `http://127.0.0.1:8501` — the Command Center's **Meta Ad Library** source should now show a non-zero record count.
+
+Full details and the manifest schema are in [docs/REAL_ADS_ENRICHMENT.md](docs/REAL_ADS_ENRICHMENT.md).
 
 ## DuckDB tables
 
